@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Yakınımda: ucuz ve iyi restoranı bul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="maplibre-gl.css">
+<link rel="stylesheet" href="style.css?v=0.8">
+</head>
+<body>
+<header><div class="logo">yakınımda<span>.</span></div><small>restoran ve fast-food fiyat karşılaştırma</small></header>
+
+<section class="hero">
+  <h1>Bu akşam ne yesem,<br>nereden ucuz?</h1>
+  <p>Çevrendeki mekânları fiyata, puana ve mesafeye göre karşılaştır. Fiyatları senin gibi yemek yiyenler bildirir.</p>
+  <div class="search"><input id="q" placeholder="Restoran, mutfak türü veya semt ara" aria-label="Ara"><button id="go">Ara</button></div>
+</section>
+
+<main>
+<aside>
+  <label>Sırala
+    <select id="sort">
+      <option value="rating">Puan: yüksekten düşüğe</option>
+      <option value="fp">Fiyat/performans</option>
+      <option value="price">Fiyat: ucuzdan pahalıya</option>
+      <option value="km">Mesafe: yakından uzağa</option>
+    </select>
+  </label>
+  <fieldset><legend>Mutfak türü</legend><div id="cuisines"></div></fieldset>
+  <label>Ortalama fiyat <output id="pout">400 ₺ ve altı</output>
+    <input id="pmax" type="range" min="50" max="400" step="10" value="400">
+  </label>
+  <label>Minimum puan <output id="rout">Tümü</output>
+    <input id="rmin" type="range" min="0" max="5" step="0.1" value="0">
+  </label>
+  <button id="reset" class="ghost">Filtreleri sıfırla</button>
+</aside>
+
+<section>
+  <div class="map-wrap">
+    <div class="loc-bar">
+      <button id="locate">📍 Konumumu kullan</button>
+      <span id="locstat">Konumun seçili değil. İzin ver ya da haritada bir noktaya tıkla.</span>
+      <span>Pindeki fiyat, referans ürünün fiyatıdır.</span>
+    </div>
+    <div id="map" role="application" aria-label="Restoran haritası"></div>
+  </div>
+  <div class="head"><h2>Restoranlar</h2><small id="count"></small></div>
+  <p id="src" class="src"></p>
+  <div id="cards"></div>
+</section>
+</main>
+
+<dialog id="dlg">
+  <h3 id="dt"></h3>
+  <p id="dref"></p>
+  <label>Ödediğin fiyat (₺, isteğe bağlı)<input id="dprice" type="number" min="1" inputmode="numeric"></label>
+  <label id="drlabel">Puanın (isteğe bağlı)<select id="drate"><option value="">Puan verme</option><option value="5">5, çok iyi</option><option value="4">4, iyi</option><option value="3">3, orta</option><option value="2">2, kötü</option><option value="1">1, çok kötü</option></select></label>
+  <div class="row"><button id="dok">Fiyatı gönder</button><button id="dcancel" class="ghost">Vazgeç</button></div>
+</dialog>
+<div id="toast" role="status"></div>
+<script src="maplibre-gl.js"></script>
+<script src="app.js?v=0.8"></script>
+<script>setTimeout(function(){var h=document.querySelector("header small");if(h&&h.textContent.indexOf("sürüm 0.8")<0){h.innerHTML+=' <b style="color:#c0392b">⚠ app.js eski sürüm: dosyayı kaydet (Ctrl+S) ve Ctrl+F5 yap</b>';}},1500);</script>
+</body>
+</html>
