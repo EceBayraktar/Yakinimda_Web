@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="maplibre-gl.css">
-<link rel="stylesheet" href="style.css?v=0.9">
+<link rel="stylesheet" href="style.css?v=0.10">
 </head>
 <body>
 <div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
@@ -64,6 +64,7 @@
   <label class="field">Minimum puan <output id="rout">Tümü</output>
     <input id="rmin" type="range" min="0" max="5" step="0.1" value="0">
   </label>
+  <button id="apply" class="apply" type="button">Ara</button>
   <button id="reset" class="ghost" type="button">Filtreleri sıfırla</button>
 </aside>
 
@@ -96,7 +97,7 @@
 </dialog>
 <div id="toast" role="status"></div>
 <script src="maplibre-gl.js"></script>
-<script src="app.js?v=0.9"></script>
-<script src="ui.js?v=0.9"></script>
+<script src="app.js?v=0.10"></script>
+<script src="ui.js?v=0.10"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-const VERSION = '0.9';
+const VERSION = '0.10';
 
 // ---------- Ayarlar ----------
 const MIN_ZOOM = 14;       // bu yakınlıktan uzakta restoran yüklenmez (çok geniş alan olur)
@@ -15,12 +15,13 @@ const REF = {'Köfte':'Izgara köfte porsiyonu','Kebap':'Adana kebap porsiyonu',
 const EMOJI = {'Köfte':'🥩','Kebap':'🌯','Pide':'🫓','Fast Food':'🍔','Kahvaltı':'🍳','Balık':'🐟','Ev Yemekleri':'🍲','Uzak Doğu':'🍣','İtalyan':'🍝','Diğer':'🍽️'};
 
 // Eksik bir öğe sayfanın tamamını bozmasın diye boş bir yedek nesne döner
-const $ = id => document.getElementById(id) || {style:{}, value:'', textContent:'', innerHTML:'', classList:{add(){}, remove(){}}};
+const $ = id => document.getElementById(id) || {style:{}, value:'', textContent:'', innerHTML:'', classList:{add(){}, remove(){}, toggle(){}}};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // VS Code'un içindeki önizleme panelleri yazmayı ve ağ isteklerini engelleyebilir: gerçek tarayıcıda açılması gerekir
 try { if (location.protocol==='file:' || /vscode/i.test(navigator.userAgent)) { const w = document.createElement('p'); w.className='warn'; w.textContent = 'Not: Bu sayfa dosya olarak ya da VS Code önizlemesinde açılmış görünüyor. Yazma, konum ve restoran yükleme çalışmayabilir. Chrome ya da Edge\'de http://localhost:8000 adresinden aç (terminalde klasörün içinde: python -m http.server 8000).'; document.body.insertBefore(w, document.body.firstChild); } } catch (e) {}
 $('ver').textContent = 'sürüm '+VERSION;
 
+let applied = {pm:400, rm:0}; // 'Ara' düğmesiyle uygulanmış fiyat ve puan filtresi
 let data = [];          // şu an yüklü mekânlar
 let user = null;        // {lat, lng}: konum izni, haritadan seçim ya da aranan yer
 let placeQuery = '';    // yer olarak aranmış metin: mekân filtresi olarak kullanılmaz
@@ -64,13 +65,11 @@ const meterPct = r => r.idx==null ? 0 : Math.round(Math.max(8, Math.min(100, (r.
 function view(){
   data.forEach(enrich);
   const qv = $('q').value.trim(), q = (qv===placeQuery ? '' : qv).toLocaleLowerCase('tr');
-  const pm = +$('pmax').value, rm = +$('rmin').value, s = $('sort').value;
-  $('pout').textContent = pm>=400 ? 'Sınır yok' : pm+' ₺ ve altı';
-  $('rout').textContent = rm===0 ? 'Tümü' : rm.toFixed(1)+' ve üstü';
+  const pm = applied.pm, rm = applied.rm, s = $('sort').value;
   const a = data.filter(r =>
     (!selected.size || selected.has(r.cuisine)) &&
-    (pm>=400 || (r.price!=null && r.price<=pm)) &&
-    (rm===0 || (r.rating!=null && r.rating>=rm)) &&
+    (pm>=400 || r.price==null || r.price<=pm) &&   // fiyatı henüz bilinmeyen mekân elenmez
+    (rm===0 || r.rating==null || r.rating>=rm) &&  // puanı henüz bilinmeyen mekân elenmez
     (!q || (r.name+' '+r.cuisine+' '+r.hood).toLocaleLowerCase('tr').includes(q)));
   const sorts = {
     rating:(x,y)=>(y.rating??-1)-(x.rating??-1) || (x.km??1e9)-(y.km??1e9),
@@ -102,9 +101,9 @@ function guessCuisine(t){
   const n = (t.name||'').toLocaleLowerCase('tr'), c = (t.cuisine||'').toLowerCase();
   const has = (s, ...k) => k.some(x => s.includes(x));
   if (has(n,'köfte','kofte') || has(c,'meatball')) return 'Köfte';
-  if (has(n,'kebap','kebab','döner','doner','ocakbaşı','ocakbasi') || has(c,'kebab','doner','turkish_grill')) return 'Kebap';
+  if (has(n,'kebap','kebab','döner','doner','ocakbaşı','ocakbasi','tantuni','iskender') || has(c,'kebab','doner','turkish_grill')) return 'Kebap';
   if (has(n,'pide','lahmacun') || has(c,'pide','lahmacun')) return 'Pide';
-  if (has(n,'balık','balik') || has(c,'seafood','fish')) return 'Balık';
+  if (has(n,'balık','balik','deniz ürün','denizürün','levrek','hamsi','midye','karides','kalamar','istakoz','somon') || has(c,'seafood','fish')) return 'Balık';
   if (has(n,'kahvaltı','kahvalti') || has(c,'breakfast')) return 'Kahvaltı';
   if (has(n,'pizza','pasta','trattoria') || has(c,'pizza','italian','pasta')) return 'İtalyan';
   if (has(n,'sushi','wok','noodle') || has(c,'sushi','chinese','japanese','asian','thai','korean','vietnamese')) return 'Uzak Doğu';
@@ -309,7 +308,7 @@ if (typeof maplibregl === 'undefined') {
   setSrc('Harita yüklenmeden restoranlar gösterilemez.');
 } else {
   try {
-    map = new maplibregl.Map({container:'map', style:'https://tiles.openfreemap.org/styles/positron', center:[29.0245, 40.9903], zoom:14});
+    map = new maplibregl.Map({container:'map', style:'https://tiles.openfreemap.org/styles/liberty', center:[29.0245, 40.9903], zoom:14});
     map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-left');
     map.on('moveend', () => { drawMap(lastList); scheduleLoad(); });
     map.on('load', () => loadView());
@@ -346,14 +345,52 @@ $('dok').onclick = () => {
 };
 
 // ---------- Filtreler ----------
+// Mutfak türü, fiyat ve puan seçimleri "Ara" düğmesine basılınca uygulanır; sıralama ve üstteki arama kutusu anında çalışır.
 $('cuisines').innerHTML = Object.keys(BASE).sort((a,b)=>a.localeCompare(b,'tr')).map(c=>`<label class="chk"><input type="checkbox" value="${c}"><span>${EMOJI[c]||''} ${c}</span></label>`).join('');
-$('cuisines').onchange = e => { e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value); limit = PAGE; view(); };
-['q','pmax','rmin','sort'].forEach(id => $(id).oninput = () => { limit = PAGE; view(); });
+function sliderLabels(){
+  const pm = +$('pmax').value, rm = +$('rmin').value;
+  $('pout').textContent = pm>=400 ? 'Sınır yok' : pm+' ₺ ve altı';
+  $('rout').textContent = rm===0 ? 'Tümü' : rm.toFixed(1)+' ve üstü';
+}
+const pendingCuisines = () => [...document.querySelectorAll('#cuisines input:checked')].map(i => i.value);
+function syncApply(){
+  const p = pendingCuisines(), b = $('apply');
+  b.textContent = p.length===0 ? 'Ara' : p.length===1 ? (EMOJI[p[0]]||'')+' '+p[0]+' restoranlarını ara' : p.length+' türde ara';
+  const dirty = p.length!==selected.size || p.some(c => !selected.has(c)) || +$('pmax').value!==applied.pm || +$('rmin').value!==applied.rm;
+  b.classList.toggle('dirty', dirty);
+}
+// Sonuçların hepsi görünsün diye haritayı yakınlaştır/uzaklaştır (veri yükleme eşiğinin altına inmez)
+function fitResults(){
+  if (!map || !lastList.length) return;
+  let S=90, N=-90, W=180, E=-180;
+  lastList.forEach(r => { S=Math.min(S,r.lat); N=Math.max(N,r.lat); W=Math.min(W,r.lng); E=Math.max(E,r.lng); });
+  try {
+    const cam = map.cameraForBounds([[W,S],[E,N]], {padding:70, maxZoom:16});
+    if (cam) map.easeTo({center:cam.center, zoom:Math.max(MIN_ZOOM, cam.zoom), duration:700});
+  } catch (e) {}
+}
+function applyFilters(){
+  selected.clear(); pendingCuisines().forEach(c => selected.add(c));
+  applied = {pm:+$('pmax').value, rm:+$('rmin').value};
+  limit = PAGE; view(); syncApply();
+  const n = lastList.length, names = [...selected];
+  toast(n ? n.toLocaleString('tr-TR')+' mekân bulundu'+(names.length ? ': '+names.join(', ') : '')+'.' : 'Bu görünümde uygun mekân bulunamadı. Haritayı kaydır ya da başka bir semt ara.');
+  fitResults();
+  if (window.innerWidth<=900) { const m = document.querySelector('.map-wrap'); if (m && m.scrollIntoView) m.scrollIntoView({behavior:'smooth', block:'start'}); }
+}
+$('cuisines').onchange = syncApply;
+['pmax','rmin'].forEach(id => $(id).oninput = () => { sliderLabels(); syncApply(); });
+['q','sort'].forEach(id => $(id).oninput = () => { limit = PAGE; view(); });
+$('apply').onclick = applyFilters;
 $('go').onclick = search;
 $('q').addEventListener('keydown', e => { if (e.key==='Enter') search(); }); // (onkeydown ile false döndürmek harf girişini engeller)
 $('reset').onclick = () => {
-  selected.clear(); document.querySelectorAll('#cuisines input').forEach(i=>i.checked=false);
-  $('pmax').value=400; $('rmin').value=0; $('q').value=''; placeQuery=''; $('sort').value='rating'; limit = PAGE; view();
+  selected.clear(); document.querySelectorAll('#cuisines input').forEach(i => i.checked=false);
+  $('pmax').value=400; $('rmin').value=0; $('q').value=''; placeQuery='';
+  applied = {pm:400, rm:0}; limit = PAGE; sliderLabels(); syncApply();
+  const so = document.getElementById('sort'); if (so) { so.value = 'rating'; so.dispatchEvent(new Event('input', {bubbles:true})); }
+  view();
 };
+sliderLabels(); syncApply();
 
 view();
