@@ -4,23 +4,52 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Yakınımda: ucuz ve iyi restoranı bul</title>
+<meta name="description" content="Çevrendeki restoran ve fast-food mekânlarını fiyata, puana ve mesafeye göre karşılaştır.">
+<script>try{var t=localStorage.getItem('yakinimda_tema');if(t==='light'||t==='dark')document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Instrument+Sans:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="maplibre-gl.css">
-<link rel="stylesheet" href="style.css?v=0.8">
+<link rel="stylesheet" href="style.css?v=0.9">
 </head>
 <body>
-<header><div class="logo">yakınımda<span>.</span></div><small>restoran ve fast-food fiyat karşılaştırma</small></header>
+<div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
+
+<header class="site">
+  <a class="logo" href="./" aria-label="Yakınımda ana sayfa">
+    <svg width="28" height="28" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8315a"/><stop offset="1" stop-color="#6c3df5"/></linearGradient></defs><path fill="url(#lg)" d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7z"/><circle cx="12" cy="9" r="2.7" fill="#fff"/></svg>
+    yakınımda
+  </a>
+  <small>restoran ve fast-food fiyat karşılaştırma</small>
+  <button id="theme" class="icon-btn" type="button" aria-label="Karanlık moda geç" title="Tema">🌙</button>
+</header>
 
 <section class="hero">
-  <h1>Bu akşam ne yesem,<br>nereden ucuz?</h1>
-  <p>Çevrendeki mekânları fiyata, puana ve mesafeye göre karşılaştır. Fiyatları senin gibi yemek yiyenler bildirir.</p>
-  <div class="search"><input id="q" placeholder="Restoran, mutfak türü veya semt ara" aria-label="Ara"><button id="go">Ara</button></div>
+  <div class="hero-text">
+    <h1>Bu akşam ne yesem,<br>nereden ucuz?</h1>
+    <p class="lead">Çevrendeki mekânları fiyata, puana ve mesafeye göre karşılaştır. Fiyatları senin gibi yemek yiyenler bildirir.</p>
+    <div class="search">
+      <input id="q" type="text" placeholder="Restoran, mutfak türü veya semt ara" aria-label="Restoran, mutfak türü veya semt ara" autocomplete="off" enterkeyhint="search">
+      <button id="go" type="button">Ara</button>
+    </div>
+    <div class="quick" role="group" aria-label="Hızlı sıralama">
+      <button type="button" data-sort="price">💸 En ucuz</button>
+      <button type="button" data-sort="fp">🔥 En iyi fiyat/performans</button>
+      <button type="button" data-sort="rating">⭐ En yüksek puan</button>
+      <button type="button" data-sort="km">📍 En yakın</button>
+    </div>
+  </div>
+  <div class="float" aria-hidden="true">
+    <div class="fc a"><span>🥩</span><div><b>Çok iyi</b><div class="m good"><i style="width:92%"></i></div></div></div>
+    <div class="fc b"><span>🍣</span><div><b>İyi</b><div class="m ok"><i style="width:66%"></i></div></div></div>
+    <div class="fc c"><span>🍔</span><div><b>Çok iyi</b><div class="m good"><i style="width:84%"></i></div></div></div>
+  </div>
 </section>
 
 <main>
 <aside>
-  <label>Sırala
+  <h2 class="aside-title">Filtreler</h2>
+  <label class="field">Sırala
     <select id="sort">
       <option value="rating">Puan: yüksekten düşüğe</option>
       <option value="fp">Fiyat/performans</option>
@@ -29,21 +58,21 @@
     </select>
   </label>
   <fieldset><legend>Mutfak türü</legend><div id="cuisines"></div></fieldset>
-  <label>Ortalama fiyat <output id="pout">400 ₺ ve altı</output>
+  <label class="field">Ortalama fiyat <output id="pout">Sınır yok</output>
     <input id="pmax" type="range" min="50" max="400" step="10" value="400">
   </label>
-  <label>Minimum puan <output id="rout">Tümü</output>
+  <label class="field">Minimum puan <output id="rout">Tümü</output>
     <input id="rmin" type="range" min="0" max="5" step="0.1" value="0">
   </label>
-  <button id="reset" class="ghost">Filtreleri sıfırla</button>
+  <button id="reset" class="ghost" type="button">Filtreleri sıfırla</button>
 </aside>
 
-<section>
+<section class="content">
   <div class="map-wrap">
     <div class="loc-bar">
-      <button id="locate">📍 Konumumu kullan</button>
+      <button id="locate" type="button">📍 Konumumu kullan</button>
       <span id="locstat">Konumun seçili değil. İzin ver ya da haritada bir noktaya tıkla.</span>
-      <span>Pindeki fiyat, referans ürünün fiyatıdır.</span>
+      <span class="hint">Pindeki fiyat, referans ürünün fiyatıdır.</span>
     </div>
     <div id="map" role="application" aria-label="Restoran haritası"></div>
   </div>
@@ -53,16 +82,21 @@
 </section>
 </main>
 
+<footer>
+  <span>Mekân verisi: OpenStreetMap katkıcıları. Harita: OpenFreeMap. Fiyatlar ve puanlar kullanıcılardan gelir.</span>
+  <small id="ver"></small>
+</footer>
+
 <dialog id="dlg">
   <h3 id="dt"></h3>
   <p id="dref"></p>
   <label>Ödediğin fiyat (₺, isteğe bağlı)<input id="dprice" type="number" min="1" inputmode="numeric"></label>
   <label id="drlabel">Puanın (isteğe bağlı)<select id="drate"><option value="">Puan verme</option><option value="5">5, çok iyi</option><option value="4">4, iyi</option><option value="3">3, orta</option><option value="2">2, kötü</option><option value="1">1, çok kötü</option></select></label>
-  <div class="row"><button id="dok">Fiyatı gönder</button><button id="dcancel" class="ghost">Vazgeç</button></div>
+  <div class="row"><button id="dok" type="button">Bildirimi gönder</button><button id="dcancel" class="ghost" type="button">Vazgeç</button></div>
 </dialog>
 <div id="toast" role="status"></div>
 <script src="maplibre-gl.js"></script>
-<script src="app.js?v=0.8"></script>
-<script>setTimeout(function(){var h=document.querySelector("header small");if(h&&h.textContent.indexOf("sürüm 0.8")<0){h.innerHTML+=' <b style="color:#c0392b">⚠ app.js eski sürüm: dosyayı kaydet (Ctrl+S) ve Ctrl+F5 yap</b>';}},1500);</script>
+<script src="app.js?v=0.9"></script>
+<script src="ui.js?v=0.9"></script>
 </body>
 </html>

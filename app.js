@@ -1,4 +1,4 @@
-const VERSION = '0.8';
+const VERSION = '0.9';
 
 // ---------- Ayarlar ----------
 const MIN_ZOOM = 14;       // bu yakınlıktan uzakta restoran yüklenmez (çok geniş alan olur)
@@ -11,12 +11,15 @@ const BASE = {'Köfte':170,'Kebap':140,'Pide':160,'Fast Food':150,'Kahvaltı':18
 // Kullanıcıya "bu fiyat neyin fiyatı" sorusunu cevaplayan referans ürün
 const REF = {'Köfte':'Izgara köfte porsiyonu','Kebap':'Adana kebap porsiyonu','Pide':'Kıymalı pide','Fast Food':'Hamburger menü','Kahvaltı':'Serpme kahvaltı, kişi başı','Balık':'Levrek porsiyonu','Ev Yemekleri':'Günün yemeği ve pilav','Uzak Doğu':'Sushi set','İtalyan':'Makarna','Diğer':'Ortalama ana yemek'};
 
+// Mutfak türü simgeleri (kartlarda ve filtre düğmelerinde)
+const EMOJI = {'Köfte':'🥩','Kebap':'🌯','Pide':'🫓','Fast Food':'🍔','Kahvaltı':'🍳','Balık':'🐟','Ev Yemekleri':'🍲','Uzak Doğu':'🍣','İtalyan':'🍝','Diğer':'🍽️'};
+
 // Eksik bir öğe sayfanın tamamını bozmasın diye boş bir yedek nesne döner
 const $ = id => document.getElementById(id) || {style:{}, value:'', textContent:'', innerHTML:'', classList:{add(){}, remove(){}}};
 const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 // VS Code'un içindeki önizleme panelleri yazmayı ve ağ isteklerini engelleyebilir: gerçek tarayıcıda açılması gerekir
 try { if (location.protocol==='file:' || /vscode/i.test(navigator.userAgent)) { const w = document.createElement('p'); w.className='warn'; w.textContent = 'Not: Bu sayfa dosya olarak ya da VS Code önizlemesinde açılmış görünüyor. Yazma, konum ve restoran yükleme çalışmayabilir. Chrome ya da Edge\'de http://localhost:8000 adresinden aç (terminalde klasörün içinde: python -m http.server 8000).'; document.body.insertBefore(w, document.body.firstChild); } } catch (e) {}
-try { document.querySelector('header small').insertAdjacentText('beforeend', ' (sürüm '+VERSION+')'); } catch (e) {}
+$('ver').textContent = 'sürüm '+VERSION;
 
 let data = [];          // şu an yüklü mekânlar
 let user = null;        // {lat, lng}: konum izni, haritadan seçim ya da aranan yer
@@ -55,6 +58,9 @@ function enrich(r){
   r.km = user ? dist(user, r) : null;
 }
 
+// Fiyat/performans çubuğunun doluluk yüzdesi (puana ve fiyata bağlı değer endeksinden)
+const meterPct = r => r.idx==null ? 0 : Math.round(Math.max(8, Math.min(100, (r.idx-0.7)/0.7*100)));
+
 function view(){
   data.forEach(enrich);
   const qv = $('q').value.trim(), q = (qv===placeQuery ? '' : qv).toLocaleLowerCase('tr');
@@ -77,10 +83,12 @@ function view(){
   const shown = a.slice(0, limit);
   const lowZoom = map && map.getZoom() < MIN_ZOOM;
   $('cards').innerHTML = (shown.length ? shown.map(r=>`
-    <article class="card" id="r${r.id}">
-      <div class="top"><div><h3>${esc(r.name)}</h3><p class="sub">${esc(r.cuisine)}${r.hood?', '+esc(r.hood):''}</p></div>
-        <div class="price"><b>${r.price!=null?'~'+r.price+' ₺':'Fiyat yok'}</b><small>${REF[r.cuisine]}</small></div></div>
-      <div class="stats"><span>${r.rating!=null?`<b>★ ${r.rating.toFixed(1)}</b> (${r.reviews.toLocaleString('tr-TR')} yorum)`:'Henüz puan yok'}</span>${r.km!=null?`<span>${r.km.toFixed(1)} km</span>`:''}<span class="fp ${r.fp[1]}">Fiyat/performans: ${r.fp[0]}</span></div>
+    <article class="card ${r.fp[1]}" id="r${r.id}">
+      <div class="top"><span class="ico" aria-hidden="true">${EMOJI[r.cuisine]||'🍽️'}</span>
+        <div><h3>${esc(r.name)}</h3><p class="sub">${esc(r.cuisine)}${r.hood?', '+esc(r.hood):''}</p></div>
+        <div class="price"><b class="${r.price==null?'none':''}">${r.price!=null?'~'+r.price+' ₺':'Fiyat yok'}</b><small>${REF[r.cuisine]}</small></div></div>
+      <div class="stats"><span>${r.rating!=null?`<b>★ ${r.rating.toFixed(1)}</b> (${r.reviews.toLocaleString('tr-TR')} yorum)`:'Henüz puan yok'}</span>${r.km!=null?`<span>📍 ${r.km.toFixed(1)} km</span>`:''}</div>
+      <div class="fpwrap"><div class="meter ${r.fp[1]}"><i style="width:${meterPct(r)}%"></i></div><span class="fp ${r.fp[1]}">Fiyat/performans: ${r.fp[0]}</span></div>
       <p class="trust">${r.reports.length ? r.reports.length+' fiyat bildirimi, son güncelleme '+ago(r.days) : 'Henüz fiyat bildirilmedi. İlk bildiren sen ol.'}</p>
       <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name+' '+r.hood)}" target="_blank" rel="noopener">Google'da yorumlar ve menü</a><button data-rep="${r.id}">Fiyat ve puan bildir</button></div>
     </article>`).join('')
@@ -301,7 +309,7 @@ if (typeof maplibregl === 'undefined') {
   setSrc('Harita yüklenmeden restoranlar gösterilemez.');
 } else {
   try {
-    map = new maplibregl.Map({container:'map', style:'https://tiles.openfreemap.org/styles/liberty', center:[29.0245, 40.9903], zoom:14});
+    map = new maplibregl.Map({container:'map', style:'https://tiles.openfreemap.org/styles/positron', center:[29.0245, 40.9903], zoom:14});
     map.addControl(new maplibregl.NavigationControl({showCompass:false}), 'top-left');
     map.on('moveend', () => { drawMap(lastList); scheduleLoad(); });
     map.on('load', () => loadView());
@@ -338,7 +346,7 @@ $('dok').onclick = () => {
 };
 
 // ---------- Filtreler ----------
-$('cuisines').innerHTML = Object.keys(BASE).sort((a,b)=>a.localeCompare(b,'tr')).map(c=>`<label class="chk"><input type="checkbox" value="${c}">${c}</label>`).join('');
+$('cuisines').innerHTML = Object.keys(BASE).sort((a,b)=>a.localeCompare(b,'tr')).map(c=>`<label class="chk"><input type="checkbox" value="${c}"><span>${EMOJI[c]||''} ${c}</span></label>`).join('');
 $('cuisines').onchange = e => { e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value); limit = PAGE; view(); };
 ['q','pmax','rmin','sort'].forEach(id => $(id).oninput = () => { limit = PAGE; view(); });
 $('go').onclick = search;
