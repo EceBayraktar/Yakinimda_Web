@@ -141,6 +141,12 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .pin.ok{background:#ffe08a;border-color:#fff;color:#3b2a00}
 .pin.mid{background:#ffbfa6;border-color:#fff;color:#4a1d08}
 .pin.none{color:var(--mut);border:2px dashed var(--mut)}
+.pin.none{padding-inline:8px;font-size:11px}
+.restaurant-popup .maplibregl-popup-content{min-width:150px;padding:10px 13px;border:1px solid var(--line);border-radius:14px;background:var(--pin-bg);color:var(--pin-ink);box-shadow:0 12px 30px rgba(20,10,50,.28);font-family:'Instrument Sans',system-ui,sans-serif}
+.restaurant-popup .maplibregl-popup-tip{border-top-color:var(--pin-bg)}
+.restaurant-popup strong,.restaurant-popup span{display:block}
+.restaurant-popup strong{max-width:220px;font-size:14px;line-height:1.25;overflow-wrap:anywhere}
+.restaurant-popup span{margin-top:3px;color:var(--mut);font-size:12px}
 .cluster{min-width:38px;height:38px;padding:0 9px;border-radius:99px;display:flex;align-items:center;justify-content:center;background:var(--grad);border:3px solid #fff;color:#fff;font-weight:700;font-size:14px;box-shadow:0 0 0 6px rgba(108,61,245,.28),0 6px 16px rgba(20,10,50,.4);cursor:pointer;transition:transform .15s}
 .cluster:hover{transform:scale(1.12)}
 .me{position:relative;width:22px;height:22px;pointer-events:none}

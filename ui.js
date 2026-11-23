@@ -24,22 +24,31 @@
   if (mq && mq.addEventListener) mq.addEventListener('change', paint);
   paint();
 
-  // Hızlı sıralama düğmeleri, soldaki "Sırala" menüsünü kullanır
-  var sort = document.getElementById('sort');
-  var pills = document.querySelectorAll('.quick [data-sort]');
-  function mark() {
-    pills.forEach(function (b) { b.classList.toggle('on', sort && b.dataset.sort === sort.value); });
+  // Mutfak menüsü: kategori seçimini yan filtreyle senkronlar ve hemen uygular.
+  var pills = document.querySelectorAll('.quick [data-cuisine]');
+  function markCuisine() {
+    var checked = document.querySelectorAll('#cuisines input:checked');
+    var cuisines = Array.prototype.map.call(checked, function (i) { return i.value; });
+    pills.forEach(function (b) {
+      var active = b.dataset.cuisine === 'all'
+        ? cuisines.length === 0
+        : cuisines.length === 1 && cuisines[0] === b.dataset.cuisine;
+      b.classList.toggle('on', active);
+    });
   }
   pills.forEach(function (b) {
     b.addEventListener('click', function () {
-      if (!sort) return;
-      sort.value = b.dataset.sort;
-      sort.dispatchEvent(new Event('input', { bubbles: true }));
-      mark();
-      var l = document.querySelector('.head');
+      var cuisine = b.dataset.cuisine;
+      document.querySelectorAll('#cuisines input').forEach(function (i) {
+        i.checked = cuisine !== 'all' && i.value === cuisine;
+      });
+      markCuisine();
+      var apply = document.getElementById('apply');
+      if (apply) apply.click();
+      var l = document.querySelector('.map-wrap');
       if (l && l.scrollIntoView) l.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   });
-  if (sort) sort.addEventListener('input', mark);
-  mark();
+  document.getElementById('cuisines')?.addEventListener('change', markCuisine);
+  markCuisine();
 })();

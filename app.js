@@ -89,7 +89,7 @@ function view(){
       <div class="stats"><span>${r.rating!=null?`<b>★ ${r.rating.toFixed(1)}</b> (${r.reviews.toLocaleString('tr-TR')} yorum)`:'Henüz puan yok'}</span>${r.km!=null?`<span>📍 ${r.km.toFixed(1)} km</span>`:''}</div>
       <div class="fpwrap"><div class="meter ${r.fp[1]}"><i style="width:${meterPct(r)}%"></i></div><span class="fp ${r.fp[1]}">Fiyat/performans: ${r.fp[0]}</span></div>
       <p class="trust">${r.reports.length ? r.reports.length+' fiyat bildirimi, son güncelleme '+ago(r.days) : 'Henüz fiyat bildirilmedi. İlk bildiren sen ol.'}</p>
-      <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name+' '+r.hood)}" target="_blank" rel="noopener">Google'da yorumlar ve menü</a><button data-rep="${r.id}">Fiyat ve puan bildir</button></div>
+      <div class="act"><a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(r.name+' '+r.hood)}" target="_blank" rel="noopener">Google'da menü ve yorumlar</a><button data-rep="${r.id}">Fiyat ve puan bildir</button></div>
     </article>`).join('')
     : `<div class="empty">${lowZoom ? 'Restoranları görmek için haritayı yakınlaştır ya da bir semt ara.' : data.length ? 'Bu filtrelere uyan mekân yok. Fiyat sınırını yükseltmeyi veya mutfak seçimini kaldırmayı dene.' : 'Bu görünümde kayıtlı restoran bulunamadı. Haritayı kaydır ya da başka bir yeri ara.'}</div>`)
     + (a.length>limit ? `<button class="more" data-more="1">Daha fazla göster (${Math.min(PAGE, a.length-limit)} kart daha)</button>` : '');
@@ -161,7 +161,7 @@ async function loadView(){
   const t = await tileFeatures();
   if (my !== reqId) return;
   if (t.length) {
-    data = t; truncated = false; limit = PAGE; view();
+    data = t; truncated = false; if (limit < MAX_ELEMENTS) limit = PAGE; view();
     setSrc(t.length.toLocaleString('tr-TR')+' mekân gösteriliyor (harita verisi). Mutfak türü ve semt gibi ayrıntılar yükleniyor...');
   } else { data = []; setSrc('Restoranlar yükleniyor...'); view(); $('cards').innerHTML = '<div class="empty">Restoranlar yükleniyor...</div>'; }
   // 2) Overpass: daha ayrıntılı ve eksiksiz veri
@@ -189,7 +189,7 @@ async function loadView(){
               reports:s.p||[], ratings:s.r||[], ts:s.t||0};
     }).filter(Boolean);
     truncated = j.elements.length >= MAX_ELEMENTS;
-    ovpLoaded = box; limit = PAGE; srcNote(); return view();
+    ovpLoaded = box; if (limit < MAX_ELEMENTS) limit = PAGE; srcNote(); return view();
   }
   if (t.length) setSrc(t.length.toLocaleString('tr-TR')+' mekân gösteriliyor (harita verisi). Ayrıntılı veri servisine ulaşılamadı ('+lastErr+'), mutfak türü tahmini eksik olabilir.');
   else setSrc('Bu görünümde restoran bulunamadı ya da veri servisine ulaşılamadı ('+lastErr+'). Haritayı biraz kaydırıp tekrar dene ya da "Bağlantıyı test et" düğmesine bas.');
@@ -218,6 +218,26 @@ async function loadView(){
 })();
 
 // ---------- Semt / yer arama (Photon, yedek: Nominatim; ikisi de ücretsiz) ----------
+function detectCuisineQuery(q){
+  const text = q.toLocaleLowerCase('tr')
+    .replaceAll('ı','i').replaceAll('ş','s').replaceAll('ğ','g')
+    .replaceAll('ü','u').replaceAll('ö','o').replaceAll('ç','c');
+  const aliases = {
+    'Balık':['balik','deniz urun','levrek','hamsi','midye','kalamar','karides','somon'],
+    'Köfte':['kofte','izgara kofte','köfte'],
+    'Kebap':['kebap','kebab','doner','döner','tantuni','iskender','ocakbasi'],
+    'Pide':['pide','lahmacun'],
+    'Fast Food':['fast food','burger','tavuk','chicken','sandvic','sandviç','tost'],
+    'Kahvaltı':['kahvalti','kahvaltı','breakfast'],
+    'Ev Yemekleri':['ev yemek','lokanta','esnaf'],
+    'Uzak Doğu':['uzak dogu','uzak doğu','sushi','wok','noodle','chinese','japon','japanese'],
+    'İtalyan':['italyan','italian','pizza','pasta','makarna']
+  };
+  for (const [cuisine, words] of Object.entries(aliases)) {
+    if (words.some(word => text.includes(word))) return cuisine;
+  }
+  return null;
+}
 async function geocode(q){
   try {
     const f = (await fetchJson('https://photon.komoot.io/api/?limit=1&bbox=25.5,35.8,45,42.2&q='+encodeURIComponent(q), 8000)).features[0];
@@ -233,6 +253,22 @@ async function search(){
   const q = $('q').value.trim(); limit = PAGE; view();
   if (!q) return;
   const ql = q.toLocaleLowerCase('tr');
+  const cuisineQuery = detectCuisineQuery(q);
+  if (cuisineQuery) {
+    selected.clear();
+    selected.add(cuisineQuery);
+    document.querySelectorAll('#cuisines input').forEach(i => i.checked = i.value === cuisineQuery);
+    placeQuery = '';
+    $('q').value = '';
+    limit = MAX_ELEMENTS;
+    syncApply();
+    applied = {pm:+$('pmax').value, rm:+$('rmin').value};
+    view();
+    fitResults();
+    say(cuisineQuery+' mutfağına ait tüm kayıtlı mekânlar listeleniyor.');
+    if (window.innerWidth<=900) document.querySelector('.map-wrap')?.scrollIntoView({behavior:'smooth', block:'start'});
+    return;
+  }
   if (data.some(r => (r.name+' '+r.cuisine+' '+r.hood).toLocaleLowerCase('tr').includes(ql))) return; // yüklü mekânlarda eşleşti
   setSrc('"'+q+'" yer olarak aranıyor...');
   const g = await geocode(q);
@@ -246,6 +282,27 @@ async function search(){
 // ---------- Harita: MapLibre GL + OpenFreeMap (ücretsiz, anahtar gerektirmez) ----------
 let map = null, meMarker = null, pinMarkers = [], lastList = [];
 function mapMsg(t){ $('map').innerHTML = '<div class="map-msg">'+t+'</div>'; map = null; }
+let hoverPopup = null;
+function showRestaurantPopup(r, lng, lat){
+  if (!map || typeof maplibregl.Popup !== 'function') return;
+  if (hoverPopup) hoverPopup.remove();
+  const price = r.price != null ? r.price+' ₺' : 'Fiyat yok';
+  const detail = (r.hood ? r.cuisine+' · '+r.hood : r.cuisine)+' · '+price;
+  hoverPopup = new maplibregl.Popup({
+    closeButton:false,
+    closeOnClick:false,
+    closeOnMove:false,
+    offset:18,
+    className:'restaurant-popup'
+  }).setLngLat([lng,lat]).setHTML(
+    `<strong>${esc(r.name)}</strong><span>${esc(detail)}</span>`
+  ).addTo(map);
+}
+function hideRestaurantPopup(){
+  if (!hoverPopup) return;
+  hoverPopup.remove();
+  hoverPopup = null;
+}
 function focusCard(id){
   const c = $('r'+id);
   if (!c) return toast('Bu mekân listede ilk kartlar arasında değil. Sıralamayı ya da filtreleri değiştirerek bulabilirsin.');
@@ -268,7 +325,11 @@ function drawMap(list){
   const add = (el, lng, lat) => pinMarkers.push(new maplibregl.Marker({element:el}).setLngLat([lng, lat]).addTo(map));
   const single = r => {
     const el = document.createElement('div'); el.title = r.name;
-    const pin = document.createElement('div'); pin.className = 'pin '+r.fp[1]; pin.textContent = r.price!=null ? r.price+' ₺' : '?'; el.appendChild(pin);
+    const pin = document.createElement('div'); pin.className = 'pin '+r.fp[1];
+    pin.textContent = r.price!=null ? r.price+' ₺' : 'Fiyat yok';
+    el.appendChild(pin);
+    el.addEventListener('mouseenter', () => showRestaurantPopup(r, r.lng, r.lat));
+    el.addEventListener('mouseleave', hideRestaurantPopup);
     el.addEventListener('click', e => { e.stopPropagation(); focusCard(r.id); });
     add(el, r.lng, r.lat);
   };
@@ -372,7 +433,7 @@ function fitResults(){
 function applyFilters(){
   selected.clear(); pendingCuisines().forEach(c => selected.add(c));
   applied = {pm:+$('pmax').value, rm:+$('rmin').value};
-  limit = PAGE; view(); syncApply();
+  limit = MAX_ELEMENTS; view(); syncApply();
   const n = lastList.length, names = [...selected];
   toast(n ? n.toLocaleString('tr-TR')+' mekân bulundu'+(names.length ? ': '+names.join(', ') : '')+'.' : 'Bu görünümde uygun mekân bulunamadı. Haritayı kaydır ya da başka bir semt ara.');
   fitResults();

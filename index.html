@@ -32,11 +32,17 @@
       <input id="q" type="text" placeholder="Restoran, mutfak türü veya semt ara" aria-label="Restoran, mutfak türü veya semt ara" autocomplete="off" enterkeyhint="search">
       <button id="go" type="button">Ara</button>
     </div>
-    <div class="quick" role="group" aria-label="Hızlı sıralama">
-      <button type="button" data-sort="price">💸 En ucuz</button>
-      <button type="button" data-sort="fp">🔥 En iyi fiyat/performans</button>
-      <button type="button" data-sort="rating">⭐ En yüksek puan</button>
-      <button type="button" data-sort="km">📍 En yakın</button>
+    <div class="quick" role="group" aria-label="Mutfak menüsü">
+      <button type="button" data-cuisine="Balık">🐟 Balık</button>
+      <button type="button" data-cuisine="Köfte">🥩 Köfte</button>
+      <button type="button" data-cuisine="Kebap">🌯 Kebap</button>
+      <button type="button" data-cuisine="Pide">🫓 Pide</button>
+      <button type="button" data-cuisine="Fast Food">🍔 Fast Food</button>
+      <button type="button" data-cuisine="Kahvaltı">🍳 Kahvaltı</button>
+      <button type="button" data-cuisine="Ev Yemekleri">🍲 Ev yemekleri</button>
+      <button type="button" data-cuisine="Uzak Doğu">🍣 Uzak Doğu</button>
+      <button type="button" data-cuisine="İtalyan">🍝 İtalyan</button>
+      <button type="button" data-cuisine="all">🍽️ Tümünü göster</button>
     </div>
   </div>
   <div class="float" aria-hidden="true">
@@ -84,7 +90,7 @@
 </main>
 
 <footer>
-  <span>Mekân verisi: OpenStreetMap katkıcıları. Harita: OpenFreeMap. Fiyatlar ve puanlar kullanıcılardan gelir.</span>
+  <span>Mekân verisi: OpenStreetMap katkıcıları. Harita: OpenFreeMap. Fiyatlar ve puanlar kullanıcılardan gelir. Menü ve yorumlar Google Haritalar üzerinden açılır.</span>
   <small id="ver"></small>
 </footer>
 
